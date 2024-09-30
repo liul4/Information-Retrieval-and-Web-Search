@@ -75,10 +75,15 @@ public class App
 		String line;
 		StringBuilder content = new StringBuilder();
 		Document doc = null;
-		
+		boolean writeContent = false;
 		while ((line = reader.readLine()) != null) {
-			
+			  
 			if (line.startsWith(".I")) {
+				if (writeContent == true){
+					System.out.print(content.toString() + "\n");
+			        doc.add(new TextField("content", content.toString(), Field.Store.YES));
+				}
+				writeContent = false;
 				System.out.printf("Indexing \"%s\"\n", line);
 				// Index current document and create a new one
 				if (doc != null) {
@@ -104,17 +109,16 @@ public class App
 			} else if (line.startsWith(".W")) {
 				// Read the content of the document
 				System.out.print("content is \n");
-				while ((line = reader.readLine()) != null && !line.startsWith(".")) {
-					//System.out.print(line+" ");
-					content.append(line).append(" ");
-				}
-				System.out.print(content.toString() + "\n");
-				// Add the document's content (text)
-				doc.add(new TextField("content", content.toString(), Field.Store.YES));
-			}
+				writeContent = true;
+				
+		    } else if (writeContent == true && !line.startsWith(".")){
+		    	content.append(line).append(" ");
+		    }
 		}
 		// Add the last document to the index
 		if (doc != null) {
+			System.out.print(content.toString() + "\n");
+			doc.add(new TextField("content", content.toString(), Field.Store.YES));
 			iwriter.addDocument(doc);
 		}
 		reader.close();
