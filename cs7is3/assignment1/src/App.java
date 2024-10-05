@@ -4,8 +4,6 @@ import java.io.IOException;
 
 import java.util.ArrayList;
 
-import javax.management.Query;
-
 import java.nio.file.Paths;
 import java.nio.file.Files;
 
@@ -23,23 +21,26 @@ import org.apache.lucene.store.FSDirectory;
 import java.io.BufferedReader;
 import java.io.FileReader;
 
-import java.io.IOException;
 
-import java.util.ArrayList;
-
-import java.nio.file.Paths;
-import java.nio.file.Files;
-
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.FSDirectory;
+
+
+
+import org.apache.lucene.index.Term;
+import org.apache.lucene.index.DirectoryReader;
+
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.BooleanClause;
+
+
  
 public class App
 {
@@ -50,10 +51,11 @@ public class App
 	public static void main(String[] args) throws IOException
 	{
 		
-		createIandex();
+		indexDocument();
+		indexQuery();
 	}
 
-	public static void createIndex() throws IOException{
+	public static void indexDocument() throws IOException{
 		// Analyzer that is used to process TextField
 		Analyzer analyzer = new StandardAnalyzer();
 		
@@ -77,7 +79,7 @@ public class App
 		directory.close();
 	}
 
-	public static void queryIndex() throws IOException{
+	public static void queryDocument() throws IOException{
 		// Open the folder that contains our search index
 		Directory directory = FSDirectory.open(Paths.get(INDEX_DIRECTORY));
 		
@@ -88,7 +90,8 @@ public class App
 		// builder class for creating our query
 		BooleanQuery.Builder query = new BooleanQuery.Builder();
 
-		addQuery(iwriter, "../assignment1/cran/cran.qry");
+		//addQuery(iwriter, "../assignment1/cran/cran.qry");
+		addQuery(iwriter, "../assignment1/cran/cran.test.qry");
 		// Some words that we want to find and the field in which we expect
 		// to find them
 		Query term1 = new TermQuery(new Term("content", "raven"));
@@ -116,7 +119,28 @@ public class App
 		directory.close();
 	}
 
-	public static void addQuery() throws IOException{}
+	public static void indexQuery() throws IOException{
+		Analyzer analyzer = new StandardAnalyzer();
+		ArrayList<Document> documents = new ArrayList<Document>();
+		// Open the folder that contains our search index
+		Directory directory = FSDirectory.open(Paths.get(INDEX_DIRECTORY));
+
+		// Set up an index writer to add process and save documents to the index
+		IndexWriterConfig config = new IndexWriterConfig(analyzer);
+		config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+		IndexWriter iwriter = new IndexWriter(directory, config);
+		
+
+		//addQuery(iwriter, "../assignment1/cran/cran.qry");
+		addQuery(iwriter, "../assignment1/cran/cran.test.qry");
+		// Some words that we want to find and the field in which we expect
+		// to find them
+		
+
+		// Commit everything and close
+		iwriter.close();
+		directory.close();
+	}
 
 	public static void addDocument(IndexWriter iwriter, String filePath) throws IOException {
 		System.out.print("Indexing Document\n");
@@ -163,6 +187,9 @@ public class App
 		    } else if (writeContent == true && !line.startsWith(".")){
 		    	content.append(line).append(" ");
 		    }
+			//else if (writeContent == true && line.startsWith(".")){
+		    //	writeContent = false;
+		    //}
 		}
 		// Add the last document to the index
 		if (doc != null) {
@@ -190,12 +217,12 @@ public class App
 				}
 				writeContent = false;
 				System.out.printf("Indexing \"%s\"\n", line);
-				// Index current document and create a new one
+				// Index current query and create a new one
 				if (doc != null) {
-					// Add the document to the index
+					// Add the query to the index
 					iwriter.addDocument(doc);
 				}
-				// Start a new document
+				// Start a new query
 				doc = new Document();
 				content = new StringBuilder();
 				// Extract the document id
