@@ -21,15 +21,6 @@ import org.apache.lucene.store.FSDirectory;
 import java.io.BufferedReader;
 import java.io.FileReader;
 
-
-import org.apache.lucene.document.Field;
-import org.apache.lucene.document.TextField;
-import org.apache.lucene.document.StringField;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
-
-
-
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.DirectoryReader;
 
@@ -43,6 +34,8 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 
+import org.apache.lucene.search.similarities.BM25Similarity;
+import org.apache.lucene.search.similarities.ClassicSimilarity;
  
 public class App
 {
@@ -75,6 +68,10 @@ public class App
 		// Set up an index writer to add process and save documents to the index
 		IndexWriterConfig config = new IndexWriterConfig(analyzer);
 		config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
+		// BM25 Scoring
+		config.setSimilarity(new BM25Similarity());
+		// Vector Space Model (VSM) Scoring
+		//config.setSimilarity(new ClassicSimilarity());
 		IndexWriter iwriter = new IndexWriter(directory, config);
 
         addDocument(iwriter, "../assignment1/cran/cran.test.all.1400");
@@ -127,7 +124,7 @@ public class App
 				writeContent = true;
 				
 		    } else if (writeContent == true && !line.startsWith(".")){
-		    	content.append(line).append(" ");
+		    	content.append(line.trim()).append(" ");
 		    }
 			//else if (writeContent == true && line.startsWith(".")){
 		    //	writeContent = false;
@@ -135,8 +132,8 @@ public class App
 		}
 		// Add the last document to the index
 		if (doc != null) {
-			System.out.print(content.toString().trim() + "\n");
-			doc.add(new TextField("content", content.toString().trim(), Field.Store.YES));
+			System.out.print(content.toString() + "\n");
+			doc.add(new TextField("content", content.toString(), Field.Store.YES));
 			iwriter.addDocument(doc);
 		}
 		reader.close();
@@ -153,9 +150,10 @@ public class App
 		// query parser to parse the content
         QueryParser parser = new QueryParser("content", analyzer);
 
-		// Set up an index writer to add process and save documents to the index
-		IndexWriterConfig config = new IndexWriterConfig(analyzer);
-		config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);	
+		// BM25 Scoring
+		isearcher.setSimilarity(new BM25Similarity());
+		// Vector Space Model (VSM) Scoring
+		// isearcher.setSimilarity(new ClassicSimilarity());
 
         BufferedReader reader = new BufferedReader(new FileReader("../assignment1/cran/cran.test.qry"));
 		String line;
@@ -199,6 +197,7 @@ public class App
 
 			}
 		}
+		
 		// TODO: Check whether last query is processed?
 		queryText = queryText.trim();
 		Query query = parser.parse(queryText);
