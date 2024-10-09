@@ -40,6 +40,8 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BooleanClause;
 
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.queryparser.classic.ParseException;
 
  
 public class App
@@ -53,7 +55,11 @@ public class App
 	{
 		
 		indexDocument();
-		buildQuery();
+		try {
+        queryIndex(); 
+        } catch (ParseException e) {
+            e.printStackTrace(); // Handle the exception
+        }
 	}
 
 	public static void indexDocument() throws IOException{
@@ -64,16 +70,14 @@ public class App
 		ArrayList<Document> documents = new ArrayList<Document>();
 
 		// Open the directory that contains the search index
-		Directory directory = FSDirectory.open(Paths.get(INDEX_DIRECTORY_DOC));
+		Directory directory = FSDirectory.open(Paths.get(INDEX_DIRECTORY));
 
 		// Set up an index writer to add process and save documents to the index
 		IndexWriterConfig config = new IndexWriterConfig(analyzer);
 		config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
 		IndexWriter iwriter = new IndexWriter(directory, config);
-		
-		
+
         addDocument(iwriter, "../assignment1/cran/cran.test.all.1400");
-		//preprocessing(iwriter, "../assignment1/cran/cran.qry");
 
 		// Commit everything and close
 		iwriter.close();
@@ -131,53 +135,15 @@ public class App
 		}
 		// Add the last document to the index
 		if (doc != null) {
-			System.out.print(content.toString() + "\n");
-			doc.add(new TextField("content", content.toString(), Field.Store.YES));
+			System.out.print(content.toString().trim() + "\n");
+			doc.add(new TextField("content", content.toString().trim(), Field.Store.YES));
 			iwriter.addDocument(doc);
 		}
 		reader.close();
 	
 	}
 
-	public static void query() throws IOException{
-		// Open the folder that contains our search index
-		Directory directory = FSDirectory.open(Paths.get(INDEX_DIRECTORY_DOC));
-		
-		// create objects to read and search across the index
-		DirectoryReader ireader = DirectoryReader.open(directory);
-		IndexSearcher isearcher = new IndexSearcher(ireader);
-
-		// builder class for creating our query
-		//BooleanQuery.Builder query = new BooleanQuery.Builder();
-		Directory queryDirectory = FSDirectory.open(Paths.get(INDEX_DIRECTORY_QRY));
-        DirectoryReader queryReader = DirectoryReader.open(queryDirectory);
-        IndexSearcher querySearcher = new IndexSearcher(queryReader);
-
-		// Set up analyzer and query parser
-        Analyzer analyzer = new StandardAnalyzer();
-        QueryParser parser = new QueryParser("query", analyzer);
-		
-        // Open the results file for writing
-        BufferedWriter resultWriter = new BufferedWriter(new FileWriter(RESULT_DIRECTORY));
-		
-
-		// Get the set of results from the searcher
-		//ScoreDoc[] hits = isearcher.search(query.build(), MAX_RESULTS).scoreDocs;
-		
-		// Print the results
-		System.out.println("Documents: " + hits.length);
-		for (int i = 0; i < hits.length; i++)
-		{
-			Document hitDoc = isearcher.doc(hits[i].doc);
-			System.out.println(i + ") " + hitDoc.get("filename") + " " + hits[i].score);
-		}
-
-		// close everything we used
-		ireader.close();
-		directory.close();
-	}
-
-	public static void queryIndex() throws IOException{
+	public static void queryIndex() throws IOException, ParseException{
 		Analyzer analyzer = new StandardAnalyzer();
 		// Open the folder that contains our search index
 		Directory directory = FSDirectory.open(Paths.get(INDEX_DIRECTORY));
@@ -191,10 +157,7 @@ public class App
 		IndexWriterConfig config = new IndexWriterConfig(analyzer);
 		config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);	
 
-		//addQuery(iwriter, "../assignment1/cran/cran.qry");
-		//addQuery(iwriter, "../assignment1/cran/cran.test.qry");
-
-        BufferedReader reader = new BufferedReader(new FileReader(filePath));
+        BufferedReader reader = new BufferedReader(new FileReader("../assignment1/cran/cran.test.qry"));
 		String line;
 		String queryText = "";
 		System.out.print("readinging query\n");
@@ -225,12 +188,12 @@ public class App
 				for (int i = 0; i < hits.length; i++)
 				{
 					Document hitDoc = isearcher.doc(hits[i].doc);
-					System.out.println(i + ") " + hitDoc.get("filename") + " " + hits[i].score);
+					System.out.println(i + ") " + hitDoc.get("id") + " " + hits[i].score);
 				}
 
 				System.out.println();	
 
-				queryText = ""
+				queryText = "";
 
 				System.out.printf("Query ID : \"%s\"\n", line);
 
@@ -246,7 +209,7 @@ public class App
 		for (int i = 0; i < hits.length; i++)
 		{
 			Document hitDoc = isearcher.doc(hits[i].doc);
-			System.out.println(i + ") " + hitDoc.get("filename") + " " + hits[i].score);
+			System.out.println(i + ") " + hitDoc.get("id") + " " + hits[i].score);
 		}
 
 		reader.close();
@@ -257,79 +220,6 @@ public class App
 		
 
 		// Commit everything and close
-		iwriter.close();
 		directory.close();
-	}
-
-	public static void addQuery(IndexWriter iwriter, String filePath) throws IOException {
-		BufferedReader reader = new BufferedReader(new FileReader(filePath));
-		String line;
-		StringBuilder content = new StringBuilder();
-		Document doc = null;
-		boolean writeContent = false;
-		System.out.print("Indexing query\n");
-		while ((line = reader.readLine()) != null) {
-			  
-			if (line.startsWith(".I")) {
-				if (writeContent == true){
-					System.out.print(content.toString() + "\n");
-			        doc.add(new TextField("content", content.toString(), Field.Store.YES));
-				}
-				writeContent = false;
-				System.out.printf("Indexing \"%s\"\n", line);
-				// Index current query and create a new one
-				if (doc != null) {
-					// Add the query to the index
-					iwriter.addDocument(doc);
-				}
-				// Start a new query
-				doc = new Document();
-				content = new StringBuilder();
-				// Extract the document id
-				System.out.printf("id is \"%s\"\n", line.substring(3).trim());
-				doc.add(new StringField("id", line.substring(3).trim(), Field.Store.YES));
-			} else if (line.startsWith(".W")) {
-				// Read the content of the document
-				System.out.print("content is \n");
-				writeContent = true;
-				
-		    } else if (writeContent == true && !line.startsWith(".")){
-		    	content.append(line).append(" ");
-		    }
-		}
-		// Add the last document to the index
-		if (doc != null) {
-			System.out.print(content.toString() + "\n");
-			doc.add(new TextField("content", content.toString(), Field.Store.YES));
-			iwriter.addDocument(doc);
-		}
-		reader.close();
-	
 	}
 }
-
-    // not correct, only index document
-	/*
-	public static void indexQuery() throws IOException{
-		Analyzer analyzer = new StandardAnalyzer();
-		ArrayList<Document> documents = new ArrayList<Document>();
-		// Open the folder that contains our search index
-		Directory directory = FSDirectory.open(Paths.get(INDEX_DIRECTORY_QRY));
-
-		// Set up an index writer to add process and save documents to the index
-		IndexWriterConfig config = new IndexWriterConfig(analyzer);
-		config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-		IndexWriter iwriter = new IndexWriter(directory, config);
-		
-
-		//addQuery(iwriter, "../assignment1/cran/cran.qry");
-		addQuery(iwriter, "../assignment1/cran/cran.test.qry");
-		// Some words that we want to find and the field in which we expect
-		// to find them
-		
-
-		// Commit everything and close
-		iwriter.close();
-		directory.close();
-	}
-*/
